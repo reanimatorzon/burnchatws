@@ -1,10 +1,14 @@
 package com.heroku.burnchatws.server
 
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Configuration
+import org.springframework.messaging.handler.annotation.DestinationVariable
 import org.springframework.messaging.handler.annotation.MessageMapping
+import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.messaging.handler.annotation.SendTo
+import org.springframework.messaging.simp.SimpMessageSendingOperations
 import org.springframework.messaging.simp.config.MessageBrokerRegistry
 import org.springframework.stereotype.Controller
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker
@@ -25,8 +29,8 @@ fun main(args: Array<String>) {
 class WebSocketConfig : WebSocketMessageBrokerConfigurer {
 
     override fun configureMessageBroker(config: MessageBrokerRegistry) {
-        config.enableSimpleBroker("/topic")
         config.setApplicationDestinationPrefixes("/app")
+        config.enableSimpleBroker("/channel")
     }
 
     override fun registerStompEndpoints(registry: StompEndpointRegistry) {
@@ -39,10 +43,15 @@ class WebSocketConfig : WebSocketMessageBrokerConfigurer {
 @Controller
 class WebSocketController {
 
-    @MessageMapping("/chat")
-    @SendTo("/topic/messages")
-    fun send(message: Message): OutputMessage {
-        return OutputMessage(message.from, message.text, LocalDateTime.now())
+    @Autowired
+    private lateinit var messagingTemplate: SimpMessageSendingOperations
+
+    @MessageMapping("/chat/{roomId}")
+    fun send(@DestinationVariable roomId: String, @Payload message: Message) {
+        messagingTemplate.convertAndSend(
+            "/channel/$roomId",
+            OutputMessage(message.from, message.to, message.text, LocalDateTime.now())
+        )
     }
 
 }

@@ -15,12 +15,15 @@
         }
 
         function connect() {
+            var urlParams = new URLSearchParams(window.location.search);
+            var to = urlParams.get('roomId');
+
             var socket = new SockJS('/chat');
             stompClient = Stomp.over(socket);
             stompClient.connect({}, function(frame) {
                 setConnected(true);
                 console.log('Connected: ' + frame);
-                stompClient.subscribe('/topic/messages', function(messageOutput) {
+                stompClient.subscribe('/channel/' + to, function(messageOutput) {
                     showMessageOutput(JSON.parse(messageOutput.body));
                 });
             });
@@ -37,15 +40,19 @@
         function sendMessage() {
             var from = document.getElementById('from').value;
             var text = document.getElementById('text').value;
-            stompClient.send("/app/chat", {},
-                JSON.stringify({'from':from, 'text':text}));
+
+            var urlParams = new URLSearchParams(window.location.search);
+            var to = urlParams.get('roomId');
+
+            stompClient.send("/app/chat/" + to, {},
+                JSON.stringify({'from':from, to:to, 'text':text}));
         }
 
         function showMessageOutput(messageOutput) {
             var response = document.getElementById('response');
             var p = document.createElement('p');
             p.style.wordWrap = 'break-word';
-            p.appendChild(document.createTextNode(messageOutput.from + ": "
+            p.appendChild(document.createTextNode(messageOutput.from + " [" + messageOutput.to + "]" + ": "
                 + messageOutput.text + " (" + messageOutput.time + ")"));
             response.appendChild(p);
         }
